@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import useAuthStore from '../../store/authStore';
 import axios from '../../api/axios';
 
 export default function WalkRequestPage() {
@@ -13,6 +15,8 @@ export default function WalkRequestPage() {
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const markerRef = useRef(null);
+    const navigate = useNavigate();
+    const userId = useAuthStore((state) => state.userId);
 
     useEffect(() => {
         axios.get('/api/walk-requests').then((res) => setRequests(res.data));
@@ -39,7 +43,6 @@ export default function WalkRequestPage() {
                     map,
                 });
 
-                // 좌표 → 주소 변환
                 window.naver.maps.Service.reverseGeocode(
                     { coords: new window.naver.maps.LatLng(lat, lng) },
                     (status, response) => {
@@ -68,12 +71,25 @@ export default function WalkRequestPage() {
         alert('등록 완료!');
     };
 
+    const handleChat = async (request) => {
+        try {
+            const res = await axios.post(`/api/chat/rooms?walkRequestId=${request.id}&receiverId=${request.userId}`);
+            navigate('/chat', { state: { roomId: res.data.id } });
+        } catch (err) {
+            if (err.response?.data?.includes('이미 존재하는')) {
+                navigate('/chat');
+            } else {
+                alert('채팅방 생성 실패');
+            }
+        }
+    };
+
     return (
-        <div>
+        <div style={{ maxWidth: '600px' }}>
             <h2>산책 매칭</h2>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <input name="title" placeholder="제목" onChange={handleChange} />
-                <input name="content" placeholder="내용" onChange={handleChange} />
+                <textarea name="content" placeholder="내용" onChange={handleChange} rows={3} style={{ resize: 'none' }} />
 
                 <select name="petId" onChange={handleChange}>
                     <option value="">반려동물 선택</option>
@@ -84,19 +100,16 @@ export default function WalkRequestPage() {
                     ))}
                 </select>
 
-                <input name="walkDate" type="date" onChange={handleChange} />
-                <input name="startTime" type="time" onChange={handleChange} />
-                <input name="endTime" type="time" onChange={handleChange} />
-                <input name="reward" placeholder="보수" onChange={handleChange} />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <input name="walkDate" type="date" onChange={handleChange} style={{ flex: 1 }} />
+                    <input name="startTime" type="time" onChange={handleChange} style={{ flex: 1 }} />
+                    <input name="endTime" type="time" onChange={handleChange} style={{ flex: 1 }} />
+                </div>
 
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                        name="location"
-                        placeholder="위치"
-                        value={form.location}
-                        onChange={handleChange}
-                        readOnly
-                    />
+                <input name="reward" placeholder="알바비 (예: 시간당 10,000원)" onChange={handleChange} />
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <input name="location" placeholder="위치" value={form.location} onChange={handleChange} readOnly style={{ flex: 1 }} />
                     <button type="button" onClick={() => setShowMap(true)}>지도 선택</button>
                 </div>
 
@@ -105,9 +118,11 @@ export default function WalkRequestPage() {
 
             {showMap && (
                 <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', zIndex: 999 }}>
-                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '500px', background: '#fff' }}>
-                        <p style={{ padding: '8px', margin: 0 }}>📍 지도에서 위치를 클릭하세요</p>
-                        <button onClick={() => setShowMap(false)} style={{ position: 'absolute', top: '8px', right: '8px' }}>닫기</button>
+                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '500px', background: '#fff', borderRadius: '12px', overflow: 'hidden' }}>
+                        <div style={{ padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <p style={{ margin: 0 }}>📍 지도에서 위치를 클릭하세요</p>
+                            <button onClick={() => setShowMap(false)}>닫기</button>
+                        </div>
                         <div ref={mapRef} style={{ width: '100%', height: '450px' }} />
                     </div>
                 </div>
@@ -115,9 +130,17 @@ export default function WalkRequestPage() {
 
             <hr />
             {requests.map((r) => (
-                <div key={r.id}>
-                    <h4>{r.title}</h4>
-                    <p>{r.location} | {r.reward} | {r.status}</p>
+                <div key={r.id} style={{ padding: '12px', borderBottom: '1px solid #ccc' }}>
+                    <h4 style={{ margin: '0 0 4px' }}>{r.title}</h4>
+                    <p style={{ margin: '0 0 4px', fontSize: '13px', color: '#888' }}>
+                        {r.nickname} | {r.petName} | {r.walkDate} | {r.location}
+                    </p>
+                    <p style={{ margin: '0 0 8px', fontSize: '13px', color: '#888' }}>
+                        {r.startTime} ~ {r.endTime} | {r.reward}
+                    </p>
+                    {r.userId !== userId && (
+                        <button onClick={() => handleChat(r)}>💬 채팅하기</button>
+                    )}
                 </div>
             ))}
         </div>

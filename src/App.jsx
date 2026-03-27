@@ -1,121 +1,63 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import useAuthStore from './store/authStore';
+import LoginPage from './pages/auth/LoginPage';
+import SignUpPage from './pages/auth/SignUpPage';
+import PostListPage from './pages/community/PostListPage';
+import PostDetailPage from './pages/community/PostDetailPage';
+import PostCreatePage from './pages/community/PostCreatePage';
+import WalkRequestPage from './pages/walk/WalkRequestPage';
+import HospitalPage from './pages/hospital/HospitalPage';
+import ChatPage from './pages/chat/ChatPage';
+import PetPage from './pages/pet/PetPage';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function PrivateRoute({ children }) {
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    return isLoggedIn ? children : <Navigate to="/login" />;
 }
 
-export default App
+function NavBar() {
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
+    const setLoggedIn = useAuthStore((state) => state.setLoggedIn);
+
+    const handleLogout = () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        setLoggedIn(false);
+        window.location.href = '/login';
+    };
+
+    return (
+        <nav style={{ padding: '10px', borderBottom: '1px solid #ccc', display: 'flex', gap: '16px' }}>
+            <Link to="/">커뮤니티</Link>
+            <Link to="/pets">내 펫</Link>
+            <Link to="/walk">산책 매칭</Link>
+            <Link to="/hospital">동물병원</Link>
+            <Link to="/chat">채팅</Link>
+            {isLoggedIn
+                ? <button onClick={handleLogout}>로그아웃</button>
+                : <Link to="/login">로그인</Link>
+            }
+        </nav>
+    );
+}
+
+export default function App() {
+    return (
+        <BrowserRouter>
+            <NavBar />
+            <div style={{ padding: '16px' }}>
+                <Routes>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignUpPage />} />
+                    <Route path="/" element={<PrivateRoute><PostListPage /></PrivateRoute>} />
+                    <Route path="/posts/:postId" element={<PrivateRoute><PostDetailPage /></PrivateRoute>} />
+                    <Route path="/walk" element={<PrivateRoute><WalkRequestPage /></PrivateRoute>} />
+                    <Route path="/hospital" element={<PrivateRoute><HospitalPage /></PrivateRoute>} />
+                    <Route path="/chat" element={<PrivateRoute><ChatPage /></PrivateRoute>} />
+                    <Route path="/pets" element={<PrivateRoute><PetPage /></PrivateRoute>} />
+                    <Route path="/posts/new" element={<PrivateRoute><PostCreatePage /></PrivateRoute>} />
+                </Routes>
+            </div>
+        </BrowserRouter>
+    );
+}
