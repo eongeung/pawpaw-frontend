@@ -9,7 +9,13 @@ const ORDINALS = ['', '', '두번째', '세번째', '네번째', '다섯번째']
 const getOrdinalLabel = (n) =>
   n > 1 ? `${ORDINALS[n] || `${n}번째`} 리뷰` : null;
 
-function StarRating({ value, interactive, hoverValue, onHover, onLeave, onSelect }) {
+const calcAverage = (reviews) => {
+  if (!reviews || reviews.length === 0) return null;
+  return reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+};
+
+function StarRating({ value, interactive, hoverValue, onHover, onLeave, onSelect, size = 'md' }) {
+  const sz = size === 'sm' ? 'w-3.5 h-3.5' : 'w-5 h-5';
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => {
@@ -17,7 +23,7 @@ function StarRating({ value, interactive, hoverValue, onHover, onLeave, onSelect
         return (
           <Star
             key={s}
-            className={`w-5 h-5 transition-colors ${
+            className={`${sz} transition-colors ${
               filled ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
             } ${interactive ? 'cursor-pointer' : ''}`}
             onClick={interactive ? () => onSelect(s) : undefined}
@@ -30,11 +36,29 @@ function StarRating({ value, interactive, hoverValue, onHover, onLeave, onSelect
   );
 }
 
+function RatingSummary({ reviews }) {
+  const avg = calcAverage(reviews);
+  const count = reviews?.length ?? 0;
+
+  if (avg === null) {
+    return <span className="text-xs text-gray-400">리뷰 없음</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <StarRating value={Math.round(avg)} size="sm" />
+      <span className="text-sm font-semibold text-yellow-500">{avg.toFixed(1)}</span>
+      <span className="text-xs text-gray-400">({count}개)</span>
+    </div>
+  );
+}
+
 export default function HospitalPage() {
   const [query, setQuery] = useState('');
   const [hospitals, setHospitals] = useState([]);
-  const [selectedHospital, setSelectedHospital] = useState(null);
-  const [reviews, setReviews] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  // 병원별 리뷰 캐시: { [hospitalId]: reviews[] }
+  const [reviewsCache, setReviewsCache] = useState({});
   const [reviewContent, setReviewContent] = useState('');
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -65,6 +89,15 @@ export default function HospitalPage() {
       const res = await axios.get(`/api/hospitals/search?query=${searchQuery}`);
       setHospitals(res.data);
       displayMarkers(res.data);
+      // 모든 병원 리뷰를 한 번에 로드해서 별점 집계 표시
+      res.data.forEach((h) => loadReviews(h.id));
+    } catch (_) {}
+  };
+
+  const loadReviews = async (hospitalId) => {
+    try {
+      const res = await axios.get(`/api/hospitals/${hospitalId}/reviews`);
+      setReviewsCache((prev) => ({ ...prev, [hospitalId]: res.data }));
     } catch (_) {}
   };
 
@@ -98,18 +131,15 @@ export default function HospitalPage() {
 
   const handleSearch = () => fetchHospitals(query);
 
-  const handleSelectHospital = async (hospital) => {
-    if (selectedHospital?.id === hospital.id) {
-      setSelectedHospital(null);
-      setReviews([]);
+  const handleSelectHospital = (hospital) => {
+    if (selectedId === hospital.id) {
+      setSelectedId(null);
       return;
     }
-    setSelectedHospital(hospital);
-    setReviews([]);
+    setSelectedId(hospital.id);
     setReviewContent('');
     setRating(0);
-    const res = await axios.get(`/api/hospitals/${hospital.id}/reviews`);
-    setReviews(res.data);
+    if (!reviewsCache[hospital.id]) loadReviews(hospital.id);
     if (mapInstanceRef.current && typeof window.kakao !== 'undefined') {
       mapInstanceRef.current.setCenter(new window.kakao.maps.LatLng(hospital.lat, hospital.lng));
       mapInstanceRef.current.setLevel(2);
@@ -119,20 +149,17 @@ export default function HospitalPage() {
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (rating === 0) { alert('별점을 선택해주세요.'); return; }
-    await axios.post(`/api/hospitals/${selectedHospital.id}/reviews`, {
-      rating,
-      content: reviewContent,
-    });
-    const res = await axios.get(`/api/hospitals/${selectedHospital.id}/reviews`);
-    setReviews(res.data);
+    await axios.post(`/api/hospitals/${selectedId}/reviews`, { rating, content: reviewContent });
+    await loadReviews(selectedId);
     setReviewContent('');
     setRating(0);
   };
 
-  const reviewsWithOrdinal = reviews.reduce((acc, r) => {
-    const counts = { ...acc.counts, [r.nickname]: (acc.counts[r.nickname] || 0) + 1 };
-    return { counts, list: [...acc.list, { ...r, visitLabel: getOrdinalLabel(counts[r.nickname]) }] };
-  }, { counts: {}, list: [] }).list;
+  const getReviewsWithOrdinal = (reviews = []) =>
+    reviews.reduce((acc, r) => {
+      const counts = { ...acc.counts, [r.nickname]: (acc.counts[r.nickname] || 0) + 1 };
+      return { counts, list: [...acc.list, { ...r, visitLabel: getOrdinalLabel(counts[r.nickname]) }] };
+    }, { counts: {}, list: [] }).list;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -172,7 +199,10 @@ export default function HospitalPage() {
           )}
 
           {hospitals.map((h) => {
-            const isSelected = selectedHospital?.id === h.id;
+            const isSelected = selectedId === h.id;
+            const cachedReviews = reviewsCache[h.id];
+            const reviewsWithOrdinal = isSelected ? getReviewsWithOrdinal(cachedReviews) : [];
+
             return (
               <div
                 key={h.id}
@@ -180,15 +210,17 @@ export default function HospitalPage() {
                   isSelected ? 'ring-2 ring-purple-400 shadow-md' : 'hover:shadow-md'
                 }`}
               >
-                {/* 병원 기본 정보 - 클릭 영역 */}
+                {/* 병원 기본 정보 */}
                 <div
                   onClick={() => handleSelectHospital(h)}
                   className="p-6 cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1 min-w-0">
+                    <div className="space-y-1.5 min-w-0">
                       <h3 className="text-xl font-bold text-gray-800">{h.name}</h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                      {/* 종합 별점 + 리뷰 수 */}
+                      <RatingSummary reviews={cachedReviews} />
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
                         <MapPin className="w-4 h-4 text-purple-600 shrink-0" />
                         <span className="truncate">{h.address}</span>
                       </div>
@@ -212,13 +244,12 @@ export default function HospitalPage() {
                   </div>
                 </div>
 
-                {/* 리뷰 + 작성 폼 (선택 시 펼침) */}
+                {/* 리뷰 목록 + 작성 폼 */}
                 {isSelected && (
                   <div
                     className="border-t border-gray-100 px-6 pb-6"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {/* 기존 리뷰 목록 */}
                     <div className="pt-4 space-y-3 mb-5">
                       {reviewsWithOrdinal.length === 0 ? (
                         <p className="text-sm text-gray-400 text-center py-4">아직 리뷰가 없어요</p>
@@ -232,7 +263,7 @@ export default function HospitalPage() {
                                   {r.visitLabel}
                                 </span>
                               )}
-                              <StarRating value={r.rating} />
+                              <StarRating value={r.rating} size="sm" />
                             </div>
                             <p className="text-sm text-gray-700">{r.content}</p>
                           </div>
@@ -240,7 +271,7 @@ export default function HospitalPage() {
                       )}
                     </div>
 
-                    {/* 리뷰 작성 폼 */}
+                    {/* 리뷰 작성 */}
                     <div className="border-t border-gray-100 pt-4">
                       <p className="text-sm font-semibold text-gray-700 mb-3">리뷰 작성</p>
                       <form onSubmit={handleReviewSubmit} className="space-y-3">
