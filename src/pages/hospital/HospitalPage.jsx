@@ -252,7 +252,7 @@ export default function HospitalPage() {
                   >
                     <div
                       className={`pt-4 space-y-3 mb-5 ${
-                        reviewsWithOrdinal.length > 6
+                        reviewsWithOrdinal.length >= 6
                           ? 'max-h-[400px] overflow-y-auto pr-1'
                           : ''
                       }`}
