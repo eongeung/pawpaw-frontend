@@ -57,6 +57,8 @@ export function Layout() {
                   key={item.path}
                   to={item.path}
                   className={`flex items-center gap-2 px-4 py-3 rounded-t-lg transition-all whitespace-nowrap ${
+                    item.path === '/pets' ? 'ml-auto' : ''
+                  } ${
                     isActive
                       ? "text-purple-600 border-b-2 border-purple-600 bg-purple-50"
                       : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"
