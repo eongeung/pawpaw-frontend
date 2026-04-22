@@ -3,47 +3,27 @@ import axios from '../../api/axios';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
 import { MapPin, Star, Phone } from 'lucide-react';
+
+const ORDINALS = ['', '', '두번째', '세번째', '네번째', '다섯번째'];
+const getOrdinalLabel = (n) =>
+  n > 1 ? `${ORDINALS[n] || `${n}번째`} 리뷰` : null;
 
 export default function HospitalPage() {
   const [query, setQuery] = useState('');
   const [hospitals, setHospitals] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [selectedHospital, setSelectedHospital] = useState(null);
-  const [reviewForm, setReviewForm] = useState({ rating: '', content: '' });
+  const [reviewContent, setReviewContent] = useState('');
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
 
-  useEffect(() => {
-    if (typeof window.kakao === 'undefined') return;
-
-    const initMap = (lat, lng) => {
-      const map = new window.kakao.maps.Map(mapRef.current, {
-        center: new window.kakao.maps.LatLng(lat, lng),
-        level: 5,
-      });
-      mapInstanceRef.current = map;
-    };
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
-        () => initMap(37.5665, 126.9780)
-      );
-    } else {
-      initMap(37.5665, 126.9780);
-    }
-  }, []);
-
-  const handleSearch = async () => {
-    const res = await axios.get(`/api/hospitals/search?query=${query}`);
-    setHospitals(res.data);
-    displayMarkers(res.data);
-  };
-
-  const displayMarkers = (hospitals) => {
-    if (typeof window.kakao === 'undefined') return;
+  const displayMarkers = (hospitalList) => {
+    if (!mapInstanceRef.current || typeof window.kakao === 'undefined') return;
 
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
@@ -51,13 +31,9 @@ export default function HospitalPage() {
     const map = mapInstanceRef.current;
     const bounds = new window.kakao.maps.LatLngBounds();
 
-    hospitals.forEach((hospital) => {
+    hospitalList.forEach((hospital) => {
       const position = new window.kakao.maps.LatLng(hospital.lat, hospital.lng);
-      const marker = new window.kakao.maps.Marker({
-        position,
-        map,
-        title: hospital.name,
-      });
+      const marker = new window.kakao.maps.Marker({ position, map, title: hospital.name });
 
       window.kakao.maps.event.addListener(marker, 'mouseover', () => {
         mapRef.current.style.cursor = 'pointer';
@@ -73,10 +49,50 @@ export default function HospitalPage() {
       bounds.extend(position);
     });
 
-    if (hospitals.length > 0) {
-      map.setBounds(bounds);
-    }
+    if (hospitalList.length > 0) map.setBounds(bounds);
   };
+
+  const fetchHospitals = async (searchQuery) => {
+    try {
+      const res = await axios.get(`/api/hospitals/search?query=${searchQuery}`);
+      setHospitals(res.data);
+      displayMarkers(res.data);
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (typeof window.kakao === 'undefined') return;
+
+    const initMap = (lat, lng) => {
+      const map = new window.kakao.maps.Map(mapRef.current, {
+        center: new window.kakao.maps.LatLng(lat, lng),
+        level: 5,
+      });
+      mapInstanceRef.current = map;
+
+      // GPS 위치 기반 지역명으로 자동 검색
+      const geocoder = new window.kakao.maps.services.Geocoder();
+      geocoder.coord2RegionCode(lng, lat, (result, status) => {
+        if (status === window.kakao.maps.services.Status.OK) {
+          const region = result.find((r) => r.region_type === 'H') || result[0];
+          const regionName = region.region_2depth_name || region.region_1depth_name;
+          setQuery(regionName);
+          fetchHospitals(regionName);
+        }
+      });
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
+        () => initMap(37.5665, 126.9780)
+      );
+    } else {
+      initMap(37.5665, 126.9780);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSearch = () => fetchHospitals(query);
 
   const handleSelectHospital = async (hospital) => {
     setSelectedHospital(hospital);
@@ -93,15 +109,48 @@ export default function HospitalPage() {
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
+    if (rating === 0) {
+      alert('별점을 선택해주세요.');
+      return;
+    }
     await axios.post(`/api/hospitals/${selectedHospital.id}/reviews`, {
-      rating: Number(reviewForm.rating),
-      content: reviewForm.content,
+      rating,
+      content: reviewContent,
     });
     alert('리뷰 등록 완료!');
     const res = await axios.get(`/api/hospitals/${selectedHospital.id}/reviews`);
     setReviews(res.data);
-    setReviewForm({ rating: '', content: '' });
+    setReviewContent('');
+    setRating(0);
   };
+
+  // 닉네임별 방문 횟수 계산 → 두번째 리뷰 라벨
+  const reviewsWithOrdinal = reviews.reduce((acc, r) => {
+    const counts = { ...acc.counts, [r.nickname]: (acc.counts[r.nickname] || 0) + 1 };
+    return {
+      counts,
+      list: [...acc.list, { ...r, visitLabel: getOrdinalLabel(counts[r.nickname]) }],
+    };
+  }, { counts: {}, list: [] }).list;
+
+  const StarRow = ({ value, interactive = false }) => (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => {
+        const filled = interactive ? (hoverRating || rating) >= s : value >= s;
+        return (
+          <Star
+            key={s}
+            className={`w-5 h-5 transition-colors ${
+              filled ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+            } ${interactive ? 'cursor-pointer' : ''}`}
+            onClick={interactive ? () => setRating(s) : undefined}
+            onMouseEnter={interactive ? () => setHoverRating(s) : undefined}
+            onMouseLeave={interactive ? () => setHoverRating(0) : undefined}
+          />
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -136,9 +185,7 @@ export default function HospitalPage() {
           {hospitals.length === 0 && (
             <div className="text-center py-12 bg-white rounded-2xl shadow-sm">
               <div className="text-6xl mb-4">🏥</div>
-              <p className="text-gray-600">
-                지역을 검색하여 동물병원을 찾아보세요
-              </p>
+              <p className="text-gray-600">지역을 검색하여 동물병원을 찾아보세요</p>
             </div>
           )}
           {hospitals.map((h) => (
@@ -150,16 +197,28 @@ export default function HospitalPage() {
               }`}
             >
               <h3 className="text-xl font-bold text-gray-800 mb-2">{h.name}</h3>
-              <div className="space-y-1 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-purple-600" />
-                  {h.address}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-purple-600 shrink-0" />
+                    {h.address}
+                  </div>
                 </div>
                 {h.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-purple-600" />
-                    {h.phone}
-                  </div>
+                  <a
+                    href={`tel:${h.phone}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="shrink-0"
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                    >
+                      <Phone className="w-4 h-4 mr-1.5" />
+                      전화하기
+                    </Button>
+                  </a>
                 )}
               </div>
             </div>
@@ -174,21 +233,23 @@ export default function HospitalPage() {
             {selectedHospital.name} 리뷰
           </h2>
 
-          {reviews.length === 0 && (
+          {reviewsWithOrdinal.length === 0 && (
             <p className="text-gray-500 text-center py-8">아직 리뷰가 없어요</p>
           )}
 
           <div className="space-y-4 mb-8">
-            {reviews.map((r) => (
+            {reviewsWithOrdinal.map((r) => (
               <div key={r.id} className="bg-gray-50 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="font-semibold text-gray-800">{r.nickname}</span>
-                  <div className="flex items-center gap-1 text-yellow-500">
-                    <Star className="w-4 h-4 fill-yellow-500" />
-                    <span className="font-semibold">{r.rating}</span>
-                  </div>
+                  {r.visitLabel && (
+                    <span className="text-xs text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">
+                      {r.visitLabel}
+                    </span>
+                  )}
+                  <StarRow value={r.rating} />
                 </div>
-                <p className="text-gray-700">{r.content}</p>
+                <p className="text-gray-700 mt-1">{r.content}</p>
               </div>
             ))}
           </div>
@@ -197,28 +258,19 @@ export default function HospitalPage() {
             <h3 className="text-xl font-bold text-gray-800 mb-4">리뷰 작성</h3>
             <form onSubmit={handleReviewSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="rating">별점 (1-5)</Label>
-                <Input
-                  id="rating"
-                  type="number"
-                  min="1"
-                  max="5"
-                  placeholder="별점 (1-5)"
-                  value={reviewForm.rating}
-                  onChange={(e) => setReviewForm({ ...reviewForm, rating: e.target.value })}
-                  required
-                  className="h-12"
-                />
+                <Label>별점</Label>
+                <StarRow value={rating} interactive />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="content">리뷰 내용</Label>
-                <Input
-                  id="content"
-                  placeholder="리뷰 내용"
-                  value={reviewForm.content}
-                  onChange={(e) => setReviewForm({ ...reviewForm, content: e.target.value })}
+                <Label htmlFor="reviewContent">리뷰 내용</Label>
+                <Textarea
+                  id="reviewContent"
+                  placeholder="방문 후기를 작성해주세요"
+                  value={reviewContent}
+                  onChange={(e) => setReviewContent(e.target.value)}
                   required
-                  className="h-12"
+                  rows={3}
+                  className="resize-none"
                 />
               </div>
               <Button
