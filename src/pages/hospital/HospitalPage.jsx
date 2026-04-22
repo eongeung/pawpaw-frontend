@@ -250,7 +250,13 @@ export default function HospitalPage() {
                     className="border-t border-gray-100 px-6 pb-6"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="pt-4 space-y-3 mb-5">
+                    <div
+                      className={`pt-4 space-y-3 mb-5 ${
+                        reviewsWithOrdinal.length > 6
+                          ? 'max-h-[400px] overflow-y-auto pr-1'
+                          : ''
+                      }`}
+                    >
                       {reviewsWithOrdinal.length === 0 ? (
                         <p className="text-sm text-gray-400 text-center py-4">아직 리뷰가 없어요</p>
                       ) : (
