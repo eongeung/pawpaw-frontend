@@ -18,6 +18,7 @@ export default function PostDetailPage() {
     axios.get(`/api/posts/${postId}`).then((res) => {
       setPost(res.data);
       setLikeCount(res.data.likeCount);
+      setLiked(res.data.liked ?? false);
     });
     axios.get(`/api/posts/${postId}/comments`).then((res) => setComments(res.data));
   }, [postId]);

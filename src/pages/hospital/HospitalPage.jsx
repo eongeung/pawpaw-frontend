@@ -16,14 +16,24 @@ export default function HospitalPage() {
   const markersRef = useRef([]);
 
   useEffect(() => {
-    if (typeof window.naver === 'undefined') return;
-    
-    // 지도 초기화
-    const map = new window.naver.maps.Map(mapRef.current, {
-      center: new window.naver.maps.LatLng(37.5665, 126.9780),
-      zoom: 13,
-    });
-    mapInstanceRef.current = map;
+    if (typeof window.kakao === 'undefined') return;
+
+    const initMap = (lat, lng) => {
+      const map = new window.kakao.maps.Map(mapRef.current, {
+        center: new window.kakao.maps.LatLng(lat, lng),
+        level: 5,
+      });
+      mapInstanceRef.current = map;
+    };
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => initMap(pos.coords.latitude, pos.coords.longitude),
+        () => initMap(37.5665, 126.9780)
+      );
+    } else {
+      initMap(37.5665, 126.9780);
+    }
   }, []);
 
   const handleSearch = async () => {
@@ -33,25 +43,29 @@ export default function HospitalPage() {
   };
 
   const displayMarkers = (hospitals) => {
-    if (typeof window.naver === 'undefined') return;
+    if (typeof window.kakao === 'undefined') return;
 
-    // 기존 마커 제거
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
 
     const map = mapInstanceRef.current;
-    const bounds = new window.naver.maps.LatLngBounds();
+    const bounds = new window.kakao.maps.LatLngBounds();
 
     hospitals.forEach((hospital) => {
-      const position = new window.naver.maps.LatLng(hospital.lat, hospital.lng);
-      const marker = new window.naver.maps.Marker({
+      const position = new window.kakao.maps.LatLng(hospital.lat, hospital.lng);
+      const marker = new window.kakao.maps.Marker({
         position,
         map,
         title: hospital.name,
       });
 
-      // 마커 클릭 시 병원 선택
-      window.naver.maps.Event.addListener(marker, 'click', () => {
+      window.kakao.maps.event.addListener(marker, 'mouseover', () => {
+        mapRef.current.style.cursor = 'pointer';
+      });
+      window.kakao.maps.event.addListener(marker, 'mouseout', () => {
+        mapRef.current.style.cursor = '';
+      });
+      window.kakao.maps.event.addListener(marker, 'click', () => {
         handleSelectHospital(hospital);
       });
 
@@ -60,7 +74,7 @@ export default function HospitalPage() {
     });
 
     if (hospitals.length > 0) {
-      map.fitBounds(bounds);
+      map.setBounds(bounds);
     }
   };
 
@@ -69,12 +83,11 @@ export default function HospitalPage() {
     const res = await axios.get(`/api/hospitals/${hospital.id}/reviews`);
     setReviews(res.data);
 
-    // 선택한 병원으로 지도 이동
-    if (mapInstanceRef.current && typeof window.naver !== 'undefined') {
+    if (mapInstanceRef.current && typeof window.kakao !== 'undefined') {
       mapInstanceRef.current.setCenter(
-        new window.naver.maps.LatLng(hospital.lat, hospital.lng)
+        new window.kakao.maps.LatLng(hospital.lat, hospital.lng)
       );
-      mapInstanceRef.current.setZoom(16);
+      mapInstanceRef.current.setLevel(2);
     }
   };
 
