@@ -2,7 +2,6 @@ if (typeof window !== 'undefined') {
   window.global = window;
 }
 
-import { useEffect } from "react";
 import { RouterProvider } from "react-router";
 import { router } from "./routes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./components/ui/dialog";
@@ -10,7 +9,6 @@ import { Button } from "./components/ui/button";
 import { LogIn, WifiOff } from "lucide-react";
 import useAuthStore from "./store/authStore";
 import useErrorStore from "./store/errorStore";
-import axios from "./api/axios";
 
 function SessionExpiredModal() {
   const sessionExpired = useErrorStore((s) => s.sessionExpired);
@@ -103,22 +101,10 @@ function NetworkErrorModal() {
   );
 }
 
-function AuthValidator() {
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
-
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    axios.get('/api/users/me').catch(() => {});
-  }, [isLoggedIn]);
-
-  return null;
-}
-
 export default function App() {
   return (
     <>
       <RouterProvider router={router} />
-      <AuthValidator />
       <SessionExpiredModal />
       <NetworkErrorModal />
     </>
