@@ -9,6 +9,7 @@ import PetPage from "./pages/pet/PetPage";
 import WalkRequestPage from "./pages/walk/WalkRequestPage";
 import HospitalPage from "./pages/hospital/HospitalPage";
 import ChatPage from "./pages/chat/ChatPage";
+import MyPage from "./pages/mypage/MyPage";
 import useAuthStore from "./store/authStore";
 
 function PrivateRoute({ children }) {
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: "walk", element: <WalkRequestPage /> },
       { path: "hospital", element: <HospitalPage /> },
       { path: "chat", element: <ChatPage /> },
+      { path: "mypage", element: <MyPage /> },
     ],
   },
 ]);
