@@ -145,6 +145,18 @@ export default function HospitalPage() {
     setReviewForm({ rating: 0, content: '' });
   };
 
+  const ORDINALS = ['', '', '두번째', '세번째', '네번째', '다섯번째', '여섯번째', '일곱번째', '여덟번째', '아홉번째', '열번째'];
+
+  const getReviewsWithOrdinal = (hospitalId) => {
+    const list = reviews[hospitalId] || [];
+    const counts = {};
+    return list.map((r) => {
+      counts[r.nickname] = (counts[r.nickname] || 0) + 1;
+      const label = counts[r.nickname] >= 2 ? (ORDINALS[counts[r.nickname]] ?? `${counts[r.nickname]}번째`) + ' 리뷰' : null;
+      return { ...r, visitLabel: label };
+    });
+  };
+
   const getAvgRating = (hospitalId) => {
     const list = reviews[hospitalId];
     if (!list || list.length === 0) return null;
@@ -242,10 +254,15 @@ export default function HospitalPage() {
                   <div className="border-t border-gray-100 px-6 pb-6">
                     {hospitalReviews.length > 0 && (
                       <div className={`mt-4 space-y-3 ${hospitalReviews.length >= 6 ? 'max-h-[400px] overflow-y-auto pr-1' : ''}`}>
-                        {hospitalReviews.map((r) => (
+                        {getReviewsWithOrdinal(h.id).map((r) => (
                           <div key={r.id} className="bg-gray-50 rounded-xl p-4">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-semibold text-sm text-gray-800">{r.nickname}</span>
+                              {r.visitLabel && (
+                                <span className="text-xs text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full">
+                                  {r.visitLabel}
+                                </span>
+                              )}
                               <StarRating value={r.rating} readonly size="sm" />
                             </div>
                             <p className="text-sm text-gray-700">{r.content}</p>
