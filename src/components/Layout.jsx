@@ -17,7 +17,7 @@ export function Layout() {
   const navItems = [
     { icon: Home, label: "커뮤니티", path: "/" },
     { icon: Footprints, label: "산책 매칭", path: "/walk" },
-    { icon: Hospital, label: "동물병원", path: "/hospital" },
+    { icon: Hospital, label: "가까운 동물병원", path: "/hospital" },
     { icon: MessageCircle, label: "채팅", path: "/chat" },
     { icon: PawPrint, label: "내 펫", path: "/pets" },
     { icon: User, label: "마이페이지", path: "/mypage" },
