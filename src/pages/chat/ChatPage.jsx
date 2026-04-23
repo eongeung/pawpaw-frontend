@@ -73,22 +73,27 @@ export default function ChatPage() {
                 <p className="text-gray-600">아직 채팅방이 없어요</p>
               </div>
             )}
-            {chatRooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => handleSelectRoom(room)}
-                className={`w-full p-4 flex items-center gap-3 hover:bg-purple-50 transition-colors border-b border-gray-50 text-left ${
-                  selectedRoom?.id === room.id ? 'bg-purple-50' : ''
-                }`}
-              >
-                <div className="text-3xl">🐾</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-800">
-                    {room.requesterNickname} - {room.receiverNickname}
-                  </h3>
-                </div>
-              </button>
-            ))}
+            {chatRooms.map((room) => {
+              const otherNickname = room.requesterId === userId
+                ? room.receiverNickname
+                : room.requesterNickname;
+              return (
+                <button
+                  key={room.id}
+                  onClick={() => handleSelectRoom(room)}
+                  className={`w-full p-4 flex items-center gap-3 hover:bg-purple-50 transition-colors border-b border-gray-50 text-left ${
+                    selectedRoom?.id === room.id ? 'bg-purple-50' : ''
+                  }`}
+                >
+                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-purple-400 to-indigo-400 flex items-center justify-center text-xl flex-shrink-0 shadow-sm">
+                    🐶
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-800 truncate">{otherNickname}</h3>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -97,9 +102,13 @@ export default function ChatPage() {
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm flex flex-col overflow-hidden">
             {/* Chat Header */}
             <div className="p-4 border-b border-gray-100 flex items-center gap-3">
-              <div className="text-3xl">🐾</div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-400 flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
+                🐶
+              </div>
               <h2 className="font-semibold text-gray-800">
-                {selectedRoom.requesterNickname} - {selectedRoom.receiverNickname}
+                {selectedRoom.requesterId === userId
+                  ? selectedRoom.receiverNickname
+                  : selectedRoom.requesterNickname}
               </h2>
             </div>
 
