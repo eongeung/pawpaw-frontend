@@ -19,6 +19,12 @@ export default function ChatPage() {
     axios.get('/api/chat/rooms').then((res) => setChatRooms(res.data));
   }, []);
 
+  const getOtherNickname = (room) => {
+    if (room.requesterId === userId) return room.receiverNickname;
+    if (room.receiverId === userId) return room.requesterNickname;
+    return room.receiverNickname;
+  };
+
   const connectWebSocket = (roomId) => {
     const token = localStorage.getItem('accessToken');
     const client = new Client({
@@ -27,9 +33,7 @@ export default function ChatPage() {
         Authorization: `Bearer ${token}`,
       },
       onConnect: () => {
-        console.log('WebSocket 연결됨');
         client.subscribe(`/sub/chat/room/${roomId}`, (message) => {
-          console.log('메시지 수신:', message.body);
           const received = JSON.parse(message.body);
           setMessages((prev) => [...prev, received]);
         });
@@ -60,55 +64,50 @@ export default function ChatPage() {
     <div className="max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-800 mb-6">채팅방</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-280px)]">
+      <div className="flex gap-6 h-[calc(100vh-280px)]">
         {/* Chat Room List */}
-        <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="w-72 flex-shrink-0 bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col">
           <div className="p-4 border-b border-gray-100">
             <h2 className="font-semibold text-gray-800">대화 목록</h2>
           </div>
-          <div className="overflow-y-auto h-full">
+          <div className="overflow-y-auto flex-1">
             {chatRooms.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">💬</div>
-                <p className="text-gray-600">아직 채팅방이 없어요</p>
+                <p className="text-gray-600 text-sm">아직 채팅방이 없어요</p>
               </div>
             )}
-            {chatRooms.map((room) => {
-              const otherNickname = room.requesterId === userId
-                ? room.receiverNickname
-                : room.requesterNickname;
-              return (
-                <button
-                  key={room.id}
-                  onClick={() => handleSelectRoom(room)}
-                  className={`w-full p-4 flex items-center gap-3 hover:bg-purple-50 transition-colors border-b border-gray-50 text-left ${
-                    selectedRoom?.id === room.id ? 'bg-purple-50' : ''
-                  }`}
-                >
-                  <div className="w-11 h-11 rounded-full bg-gradient-to-br from-purple-400 to-indigo-400 flex items-center justify-center text-xl flex-shrink-0 shadow-sm">
-                    🐶
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-800 truncate">{otherNickname}</h3>
-                  </div>
-                </button>
-              );
-            })}
+            {chatRooms.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => handleSelectRoom(room)}
+                className={`w-full p-4 flex items-center gap-3 hover:bg-purple-50 transition-colors border-b border-gray-50 text-left ${
+                  selectedRoom?.id === room.id ? 'bg-purple-50' : ''
+                }`}
+              >
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-purple-400 to-indigo-400 flex items-center justify-center text-xl flex-shrink-0 shadow-sm">
+                  🐶
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-800 truncate">
+                    {getOtherNickname(room)}
+                  </h3>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Chat Messages */}
         {selectedRoom ? (
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm flex flex-col overflow-hidden">
+          <div className="flex-1 bg-white rounded-2xl shadow-sm flex flex-col overflow-hidden min-w-0">
             {/* Chat Header */}
             <div className="p-4 border-b border-gray-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-400 flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
                 🐶
               </div>
               <h2 className="font-semibold text-gray-800">
-                {selectedRoom.requesterId === userId
-                  ? selectedRoom.receiverNickname
-                  : selectedRoom.requesterNickname}
+                {getOtherNickname(selectedRoom)}
               </h2>
             </div>
 
@@ -141,11 +140,7 @@ export default function ChatPage() {
                           : 'bg-white shadow-sm'
                       }`}
                     >
-                      <p
-                        className={
-                          msg.senderId === userId ? 'text-white' : 'text-gray-800'
-                        }
-                      >
+                      <p className={msg.senderId === userId ? 'text-white' : 'text-gray-800'}>
                         {msg.content}
                       </p>
                     </div>
@@ -174,7 +169,7 @@ export default function ChatPage() {
             </div>
           </div>
         ) : (
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm flex items-center justify-center">
+          <div className="flex-1 bg-white rounded-2xl shadow-sm flex items-center justify-center min-w-0">
             <div className="text-center">
               <div className="text-6xl mb-4">💬</div>
               <p className="text-gray-600">채팅방을 선택해주세요</p>

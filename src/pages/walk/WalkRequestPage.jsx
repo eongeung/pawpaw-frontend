@@ -98,11 +98,8 @@ export default function WalkRequestPage() {
       const res = await axios.post(`/api/chat/rooms?walkRequestId=${request.id}&receiverId=${request.userId}`);
       navigate('/chat', { state: { roomId: res.data.id } });
     } catch (err) {
-      if (err.response?.data?.includes('이미 존재하는')) {
-        navigate('/chat');
-      } else {
-        alert('채팅방 생성 실패');
-      }
+      alert('이미 채팅방이 만들어져 있습니다.');
+      navigate('/chat');
     }
   };
 
