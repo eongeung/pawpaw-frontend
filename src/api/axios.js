@@ -19,6 +19,11 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (!error.response) {
+      window.dispatchEvent(new CustomEvent('network-error'));
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
