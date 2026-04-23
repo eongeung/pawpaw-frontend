@@ -78,6 +78,15 @@ export default function WalkRequestPage() {
     setForm({ ...form, petId: value });
   };
 
+  const handleRewardChange = (e) => {
+    const digits = e.target.value.replace(/[^0-9]/g, '');
+    if (!digits) {
+      setForm({ ...form, reward: '' });
+      return;
+    }
+    setForm({ ...form, reward: Number(digits).toLocaleString('ko-KR') + '원' });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const res = await axios.post('/api/walk-requests', {
@@ -200,9 +209,9 @@ export default function WalkRequestPage() {
                 <Input
                   id="reward"
                   name="reward"
-                  placeholder="예: 시간당 10,000원"
+                  placeholder="예: 10,000원"
                   value={form.reward}
-                  onChange={handleChange}
+                  onChange={handleRewardChange}
                   required
                   className="h-10"
                 />
