@@ -125,10 +125,17 @@ export default function WalkRequestPage() {
 
   const handleStartTimeChange = (e) => {
     const newStart = e.target.value;
+    if (!newStart) {
+      setForm((prev) => ({ ...prev, startTime: '', endTime: '' }));
+      return;
+    }
+    const [h, m] = newStart.split(':').map(Number);
+    const totalMin = h * 60 + m + 1;
+    const autoEnd = `${String(Math.floor(totalMin / 60) % 24).padStart(2, '0')}:${String(totalMin % 60).padStart(2, '0')}`;
     setForm((prev) => ({
       ...prev,
       startTime: newStart,
-      endTime: prev.endTime && prev.endTime <= newStart ? '' : prev.endTime,
+      endTime: autoEnd,
     }));
   };
 
