@@ -1,4 +1,5 @@
 import axios from 'axios';
+import useErrorStore from '../store/errorStore';
 
 const instance = axios.create({
   baseURL: 'http://localhost:8080',
@@ -20,7 +21,7 @@ instance.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (!error.response) {
-      window.dispatchEvent(new CustomEvent('network-error'));
+      useErrorStore.getState().setNetworkError(true);
       return Promise.reject(error);
     }
 
@@ -38,7 +39,7 @@ instance.interceptors.response.use(
       } catch (err) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.dispatchEvent(new CustomEvent('session-expired'));
+        useErrorStore.getState().setSessionExpired(true);
         return Promise.reject(err);
       }
     }
