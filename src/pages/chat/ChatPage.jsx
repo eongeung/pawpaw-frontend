@@ -152,7 +152,7 @@ export default function ChatPage() {
                   placeholder="메시지 입력"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSend()}
                   className="flex-1 rounded-full border-purple-200 focus:border-purple-400"
                 />
                 <Button
