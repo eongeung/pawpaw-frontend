@@ -33,7 +33,7 @@ instance.interceptors.response.use(
       } catch (err) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('session-expired'));
         return Promise.reject(err);
       }
     }
