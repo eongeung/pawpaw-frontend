@@ -28,6 +28,7 @@ export default function WalkRequestPage() {
   const [showMap, setShowMap] = useState(false);
   const [mapQuery, setMapQuery] = useState('');
   const [pendingAddress, setPendingAddress] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
@@ -82,20 +83,26 @@ export default function WalkRequestPage() {
 
     placesRef.current.keywordSearch(mapQuery, (data, status) => {
       if (status !== kakao.maps.services.Status.OK) {
+        setSearchResults([]);
         alert('검색 결과가 없습니다.');
         return;
       }
-      const place = data[0];
-      const latlng = new kakao.maps.LatLng(place.y, place.x);
-
-      mapInstanceRef.current.setCenter(latlng);
-      mapInstanceRef.current.setLevel(4);
-
-      if (markerRef.current) markerRef.current.setMap(null);
-      markerRef.current = new kakao.maps.Marker({ position: latlng, map: mapInstanceRef.current });
-
-      setPendingAddress(place.road_address_name || place.address_name);
+      setSearchResults(data);
     });
+  };
+
+  const handleSelectPlace = (place) => {
+    const kakao = window.kakao;
+    const latlng = new kakao.maps.LatLng(place.y, place.x);
+
+    mapInstanceRef.current.setCenter(latlng);
+    mapInstanceRef.current.setLevel(4);
+
+    if (markerRef.current) markerRef.current.setMap(null);
+    markerRef.current = new kakao.maps.Marker({ position: latlng, map: mapInstanceRef.current });
+
+    setPendingAddress(place.road_address_name || place.address_name);
+    setSearchResults([]);
   };
 
   const handleMapConfirm = () => {
@@ -367,31 +374,52 @@ export default function WalkRequestPage() {
         </div>
       </div>
 
-      <Dialog open={showMap} onOpenChange={(open) => { if (!open) { setPendingAddress(''); setMapQuery(''); } setShowMap(open); }}>
+      <Dialog open={showMap} onOpenChange={(open) => { if (!open) { setPendingAddress(''); setMapQuery(''); setSearchResults([]); } setShowMap(open); }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>📍 위치 선택</DialogTitle>
           </DialogHeader>
 
-          <div className="flex gap-2 mb-3">
-            <Input
-              placeholder="장소 또는 주소 검색"
-              value={mapQuery}
-              onChange={(e) => setMapQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleMapSearch()}
-              className="flex-1"
-            />
-            <Button
-              type="button"
-              onClick={handleMapSearch}
-              variant="outline"
-              className="border-purple-300 text-purple-600 hover:bg-purple-50"
-            >
-              <Search className="w-4 h-4" />
-            </Button>
+          <div className="relative">
+            <div className="flex gap-2">
+              <Input
+                placeholder="장소 또는 주소 검색"
+                value={mapQuery}
+                onChange={(e) => setMapQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleMapSearch()}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                onClick={handleMapSearch}
+                variant="outline"
+                className="border-purple-300 text-purple-600 hover:bg-purple-50"
+              >
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {searchResults.length > 0 && (
+              <ul className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                {searchResults.map((place, i) => (
+                  <li key={i}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPlace(place)}
+                      className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors border-b border-gray-50 last:border-0"
+                    >
+                      <p className="font-medium text-gray-800 text-sm">{place.place_name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {place.road_address_name || place.address_name}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          <div ref={mapRef} className="w-full h-[420px] rounded-xl" />
+          <div ref={mapRef} className="w-full h-[380px] rounded-xl mt-3" />
 
           <div className="flex items-center justify-between mt-3">
             <p className="text-sm text-gray-500 truncate flex-1 mr-4">
