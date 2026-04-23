@@ -236,16 +236,14 @@ export default function HospitalPage() {
                       {h.address}
                     </div>
                     {h.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-purple-600 shrink-0" />
-                        <a
-                          href={`tel:${h.phone}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-purple-600 hover:underline"
-                        >
-                          {h.phone}
-                        </a>
-                      </div>
+                      <a
+                        href={`tel:${h.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 bg-purple-50 text-purple-600 text-sm font-medium rounded-full hover:bg-purple-100 transition-colors"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        전화하기
+                      </a>
                     )}
                   </div>
                 </div>
