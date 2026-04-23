@@ -8,7 +8,14 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Plus, MessageCircle, MapPin, Calendar, Clock } from 'lucide-react';
+import { Plus, MessageCircle, MapPin, Calendar, Clock, Search } from 'lucide-react';
+
+const TODAY = new Date().toISOString().split('T')[0];
+
+const getNowTime = () => {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+};
 
 export default function WalkRequestPage() {
   const [requests, setRequests] = useState([]);
@@ -19,9 +26,13 @@ export default function WalkRequestPage() {
     reward: '', location: ''
   });
   const [showMap, setShowMap] = useState(false);
+  const [mapQuery, setMapQuery] = useState('');
+  const [pendingAddress, setPendingAddress] = useState('');
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
+  const geocoderRef = useRef(null);
+  const placesRef = useRef(null);
   const navigate = useNavigate();
   const userId = useAuthStore((state) => state.userId);
 
@@ -34,44 +45,91 @@ export default function WalkRequestPage() {
     if (!showMap) return;
 
     setTimeout(() => {
-      if (typeof window.naver === 'undefined') {
-        alert('네이버 지도 API를 사용할 수 없습니다.');
+      if (typeof window.kakao === 'undefined') {
+        alert('카카오 지도 API를 사용할 수 없습니다.');
         setShowMap(false);
         return;
       }
 
-      const map = new window.naver.maps.Map(mapRef.current, {
-        center: new window.naver.maps.LatLng(37.5665, 126.9780),
-        zoom: 14,
+      const kakao = window.kakao;
+      const map = new kakao.maps.Map(mapRef.current, {
+        center: new kakao.maps.LatLng(37.5665, 126.9780),
+        level: 5,
       });
       mapInstanceRef.current = map;
+      geocoderRef.current = new kakao.maps.services.Geocoder();
+      placesRef.current = new kakao.maps.services.Places();
 
-      window.naver.maps.Event.addListener(map, 'click', (e) => {
-        const lat = e.coord.lat();
-        const lng = e.coord.lng();
+      kakao.maps.event.addListener(map, 'click', (mouseEvent) => {
+        const latlng = mouseEvent.latLng;
 
         if (markerRef.current) markerRef.current.setMap(null);
-        markerRef.current = new window.naver.maps.Marker({
-          position: e.coord,
-          map,
-        });
+        markerRef.current = new kakao.maps.Marker({ position: latlng, map });
 
-        window.naver.maps.Service.reverseGeocode(
-          { coords: new window.naver.maps.LatLng(lat, lng) },
-          (status, response) => {
-            if (status === window.naver.maps.Service.Status.OK) {
-              const address = response.v2.address.jibunAddress || response.v2.address.roadAddress;
-              setForm((prev) => ({ ...prev, location: address }));
-              setShowMap(false);
-            }
+        geocoderRef.current.coord2Address(latlng.getLng(), latlng.getLat(), (result, status) => {
+          if (status === kakao.maps.services.Status.OK) {
+            const addr = result[0].road_address?.address_name || result[0].address.address_name;
+            setPendingAddress(addr);
           }
-        );
+        });
       });
     }, 100);
   }, [showMap]);
 
+  const handleMapSearch = () => {
+    if (!mapQuery.trim() || !placesRef.current) return;
+    const kakao = window.kakao;
+
+    placesRef.current.keywordSearch(mapQuery, (data, status) => {
+      if (status !== kakao.maps.services.Status.OK) {
+        alert('검색 결과가 없습니다.');
+        return;
+      }
+      const place = data[0];
+      const latlng = new kakao.maps.LatLng(place.y, place.x);
+
+      mapInstanceRef.current.setCenter(latlng);
+      mapInstanceRef.current.setLevel(4);
+
+      if (markerRef.current) markerRef.current.setMap(null);
+      markerRef.current = new kakao.maps.Marker({ position: latlng, map: mapInstanceRef.current });
+
+      setPendingAddress(place.road_address_name || place.address_name);
+    });
+  };
+
+  const handleMapConfirm = () => {
+    if (!pendingAddress) {
+      alert('지도에서 위치를 선택해주세요.');
+      return;
+    }
+    setForm((prev) => ({ ...prev, location: pendingAddress }));
+    setShowMap(false);
+    setPendingAddress('');
+    setMapQuery('');
+  };
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleDateChange = (e) => {
+    const newDate = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      walkDate: newDate,
+      startTime: newDate === TODAY && prev.startTime < getNowTime() ? '' : prev.startTime,
+      endTime: newDate === TODAY && prev.startTime < getNowTime() ? '' : prev.endTime,
+    }));
+  };
+
+  const handleStartTimeChange = (e) => {
+    const newStart = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      startTime: newStart,
+      endTime: prev.endTime && prev.endTime <= newStart ? '' : prev.endTime,
+    }));
   };
 
   const handlePetChange = (value) => {
@@ -171,7 +229,8 @@ export default function WalkRequestPage() {
                   name="walkDate"
                   type="date"
                   value={form.walkDate}
-                  onChange={handleChange}
+                  onChange={handleDateChange}
+                  min={TODAY}
                   required
                   className="h-10"
                 />
@@ -185,7 +244,8 @@ export default function WalkRequestPage() {
                     name="startTime"
                     type="time"
                     value={form.startTime}
-                    onChange={handleChange}
+                    onChange={handleStartTimeChange}
+                    min={form.walkDate === TODAY ? getNowTime() : undefined}
                     required
                     className="h-10"
                   />
@@ -198,6 +258,7 @@ export default function WalkRequestPage() {
                     type="time"
                     value={form.endTime}
                     onChange={handleChange}
+                    min={form.startTime || undefined}
                     required
                     className="h-10"
                   />
@@ -299,12 +360,45 @@ export default function WalkRequestPage() {
         </div>
       </div>
 
-      <Dialog open={showMap} onOpenChange={setShowMap}>
-        <DialogContent className="max-w-3xl max-h-[80vh]">
+      <Dialog open={showMap} onOpenChange={(open) => { if (!open) { setPendingAddress(''); setMapQuery(''); } setShowMap(open); }}>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>📍 지도에서 위치를 클릭하세요</DialogTitle>
+            <DialogTitle>📍 위치 선택</DialogTitle>
           </DialogHeader>
-          <div ref={mapRef} className="w-full h-[500px] rounded-xl" />
+
+          <div className="flex gap-2 mb-3">
+            <Input
+              placeholder="장소 또는 주소 검색"
+              value={mapQuery}
+              onChange={(e) => setMapQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleMapSearch()}
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              onClick={handleMapSearch}
+              variant="outline"
+              className="border-purple-300 text-purple-600 hover:bg-purple-50"
+            >
+              <Search className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div ref={mapRef} className="w-full h-[420px] rounded-xl" />
+
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-sm text-gray-500 truncate flex-1 mr-4">
+              {pendingAddress ? `📍 ${pendingAddress}` : '지도를 클릭하거나 검색해서 위치를 선택하세요'}
+            </p>
+            <Button
+              type="button"
+              onClick={handleMapConfirm}
+              disabled={!pendingAddress}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full px-6 disabled:opacity-40"
+            >
+              선택 완료
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
