@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import axios from '../../api/axios';
 import { Button } from '../../components/ui/button';
@@ -6,11 +6,19 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ImagePlus, X } from 'lucide-react';
 
 export default function PostCreatePage() {
-  const [form, setForm] = useState({ category: '', title: '', content: '', petId: '' });
+  const [form, setForm] = useState({ category: '', title: '', content: '' });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -20,11 +28,29 @@ export default function PostCreatePage() {
     setForm({ ...form, category: value });
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.post('/api/posts', {
-      ...form,
-      petId: form.petId ? Number(form.petId) : null,
+    const formData = new FormData();
+    formData.append('category', form.category);
+    formData.append('title', form.title);
+    formData.append('content', form.content);
+    if (imageFile) formData.append('image', imageFile);
+    await axios.post('/api/posts', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     alert('작성 완료!');
     navigate('/');
@@ -85,6 +111,37 @@ export default function PostCreatePage() {
               rows={10}
               className="resize-none"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>이미지 첨부</Label>
+            {imagePreview ? (
+              <div className="relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt="미리보기"
+                  className="w-full max-h-64 object-cover rounded-xl border border-gray-200"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-purple-200 rounded-xl cursor-pointer hover:bg-purple-50 transition-colors">
+                <ImagePlus className="w-8 h-8 text-purple-400 mb-2" />
+                <span className="text-sm text-gray-500">클릭하여 이미지 추가</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
 
           <div className="flex gap-3">
