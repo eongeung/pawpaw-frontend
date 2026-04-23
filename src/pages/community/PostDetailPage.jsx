@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import axios from '../../api/axios';
+import useAuthStore from '../../store/authStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { ArrowLeft, Heart, MessageCircle } from 'lucide-react';
 
+const getLikedKey = (userId, postId) => `liked_${userId}_${postId}`;
+
 export default function PostDetailPage() {
   const { postId } = useParams();
   const navigate = useNavigate();
+  const userId = useAuthStore((state) => state.userId);
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [content, setContent] = useState('');
@@ -18,19 +22,22 @@ export default function PostDetailPage() {
     axios.get(`/api/posts/${postId}`).then((res) => {
       setPost(res.data);
       setLikeCount(res.data.likeCount);
-      setLiked(res.data.liked ?? false);
+      const stored = localStorage.getItem(getLikedKey(userId, postId));
+      setLiked(stored !== null ? stored === 'true' : (res.data.liked ?? false));
     });
     axios.get(`/api/posts/${postId}/comments`).then((res) => setComments(res.data));
-  }, [postId]);
+  }, [postId, userId]);
 
   const handleLike = async () => {
     const res = await axios.post(`/api/posts/${postId}/likes`);
     if (res.data === '좋아요') {
       setLikeCount((prev) => prev + 1);
       setLiked(true);
+      localStorage.setItem(getLikedKey(userId, postId), 'true');
     } else {
       setLikeCount((prev) => prev - 1);
       setLiked(false);
+      localStorage.setItem(getLikedKey(userId, postId), 'false');
     }
   };
 
