@@ -115,6 +115,7 @@ export default function PetPage() {
                   id="age"
                   name="age"
                   type="number"
+                  min="0"
                   placeholder="나이"
                   value={form.age}
                   onChange={handleChange}
