@@ -4,6 +4,7 @@ import axios from '../../api/axios';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
+import KakaoLoginButton from '../../components/KakaoLoginButton';
 
 export default function SignUpPage() {
   const [form, setForm] = useState({ email: '', password: '', nickname: '' });
@@ -92,6 +93,16 @@ export default function SignUpPage() {
               회원가입
             </Button>
           </form>
+
+          <div className="mt-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-sm text-gray-400">또는</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          <div className="mt-4">
+            <KakaoLoginButton label="카카오로 회원가입" />
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">

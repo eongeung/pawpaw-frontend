@@ -10,6 +10,7 @@ import WalkRequestPage from "./pages/walk/WalkRequestPage";
 import HospitalPage from "./pages/hospital/HospitalPage";
 import ChatPage from "./pages/chat/ChatPage";
 import MyPage from "./pages/mypage/MyPage";
+import KakaoCallback from "./pages/auth/KakaoCallback";
 import useAuthStore from "./store/authStore";
 
 function PrivateRoute({ children }) {
@@ -25,6 +26,10 @@ export const router = createBrowserRouter([
   {
     path: "/signup",
     element: <SignUpPage />,
+  },
+  {
+    path: "/oauth/kakao",
+    element: <KakaoCallback />,
   },
   {
     path: "/",

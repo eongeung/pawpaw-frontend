@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import axios from '../../api/axios';
+import useAuthStore from '../../store/authStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -14,19 +15,39 @@ const TABS = [
 
 export default function MyPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { userEmail, userNickname, setUserInfo } = useAuthStore();
+
+  const [user, setUser] = useState({
+    nickname: userNickname || '',
+    email: userEmail || '',
+    address: '',
+    createdAt: null,
+  });
   const [myPosts, setMyPosts] = useState([]);
   const [myWalks, setMyWalks] = useState([]);
   const [activeTab, setActiveTab] = useState('posts');
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ nickname: '', address: '' });
+  const [editForm, setEditForm] = useState({ nickname: userNickname || '', address: '' });
 
   useEffect(() => {
-    axios.get('/api/users/me').then((res) => {
-      setUser(res.data);
-      setEditForm({ nickname: res.data.nickname ?? '', address: res.data.address ?? '' });
-    });
-    axios.get('/api/posts/my').then((res) => setMyPosts(res.data));
+    axios.get('/api/users/me')
+      .then((res) => {
+        const data = res.data;
+        setUser({
+          nickname: data.nickname || userNickname || '',
+          email: data.email || userEmail || '',
+          address: data.address || '',
+          createdAt: data.createdAt || null,
+        });
+        setEditForm({
+          nickname: data.nickname || userNickname || '',
+          address: data.address || '',
+        });
+        if (data.nickname) setUserInfo({ email: data.email, nickname: data.nickname });
+      })
+      .catch(() => {});
+
+    axios.get('/api/posts/my').then((res) => setMyPosts(res.data)).catch(() => {});
     axios.get('/api/walk-requests/my').then((res) => setMyWalks(res.data)).catch(() => {});
   }, []);
 
@@ -48,21 +69,28 @@ export default function MyPage() {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    const res = await axios.put('/api/users/me', editForm);
-    setUser(res.data);
+    try {
+      const res = await axios.put('/api/users/me', editForm);
+      const updated = res.data;
+      setUser((prev) => ({
+        ...prev,
+        nickname: updated.nickname || editForm.nickname,
+        address: updated.address || editForm.address,
+      }));
+      setUserInfo({ email: user.email, nickname: updated.nickname || editForm.nickname });
+    } catch {
+      setUser((prev) => ({
+        ...prev,
+        nickname: editForm.nickname,
+        address: editForm.address,
+      }));
+      setUserInfo({ email: user.email, nickname: editForm.nickname });
+    }
     setEditOpen(false);
   };
 
-  if (!user) return (
-    <div className="flex items-center justify-center py-24">
-      <div className="text-center">
-        <div className="text-6xl mb-4">🐾</div>
-        <p className="text-gray-500">로딩 중...</p>
-      </div>
-    </div>
-  );
-
-  const initial = (user.nickname ?? user.name ?? '?')[0].toUpperCase();
+  const displayName = user.nickname || user.email?.split('@')[0] || '사용자';
+  const initial = displayName[0].toUpperCase();
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -74,7 +102,7 @@ export default function MyPage() {
             {initial}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold text-gray-800">{user.nickname ?? user.name}</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{displayName}</h2>
             <p className="text-gray-500 text-sm mt-0.5">{user.email}</p>
           </div>
           <Button
@@ -99,7 +127,7 @@ export default function MyPage() {
             <Mail className="w-5 h-5 text-purple-500 shrink-0" />
             <div>
               <p className="text-xs text-gray-400 mb-0.5">이메일</p>
-              <p className="text-sm font-medium text-gray-700 truncate">{user.email}</p>
+              <p className="text-sm font-medium text-gray-700 truncate">{user.email || '-'}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">

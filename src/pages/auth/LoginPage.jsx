@@ -5,12 +5,14 @@ import axios from '../../api/axios';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
+import KakaoLoginButton from '../../components/KakaoLoginButton';
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' });
   const navigate = useNavigate();
   const setLoggedIn = useAuthStore((state) => state.setLoggedIn);
   const setUserId = useAuthStore((state) => state.setUserId);
+  const setUserInfo = useAuthStore((state) => state.setUserInfo);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -24,6 +26,7 @@ export default function LoginPage() {
       localStorage.setItem('refreshToken', res.data.refreshToken);
       setLoggedIn(true);
       setUserId(res.data.userId);
+      setUserInfo({ email: form.email, nickname: res.data.nickname });
       navigate('/');
     } catch (err) {
       alert('로그인 실패');
@@ -84,6 +87,16 @@ export default function LoginPage() {
               로그인
             </Button>
           </form>
+
+          <div className="mt-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-sm text-gray-400">또는</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          <div className="mt-4">
+            <KakaoLoginButton label="카카오로 로그인" />
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">

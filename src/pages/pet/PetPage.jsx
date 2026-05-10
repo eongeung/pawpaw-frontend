@@ -20,9 +20,19 @@ export default function PetPage() {
     axios.get('/api/pets/my').then((res) => setPets(res.data));
   }, []);
 
+  const [errors, setErrors] = useState({});
+
   const handleChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm({ ...form, [e.target.name]: value });
+
+    if ((e.target.name === 'age' || e.target.name === 'weight') && value !== '') {
+      if (Number(value) < 0) {
+        setErrors((prev) => ({ ...prev, [e.target.name]: '0 이상의 값을 입력해주세요.' }));
+      } else {
+        setErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
+      }
+    }
   };
 
   const handleSpeciesChange = (value) => {
@@ -35,6 +45,7 @@ export default function PetPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (errors.age || errors.weight) return;
     const res = await axios.post('/api/pets', {
       ...form,
       age: form.age ? Number(form.age) : null,
@@ -42,6 +53,7 @@ export default function PetPage() {
     });
     setPets([...pets, res.data]);
     setForm({ name: '', species: '', breed: '', age: '', gender: '', weight: '', description: '', isNeutered: false });
+    setErrors({});
     setShowForm(false);
     alert('펫 등록 완료!');
   };
@@ -119,8 +131,9 @@ export default function PetPage() {
                   placeholder="나이"
                   value={form.age}
                   onChange={handleChange}
-                  className="h-12"
+                  className={`h-12 ${errors.age ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                 />
+                {errors.age && <p className="text-xs text-red-500">{errors.age}</p>}
               </div>
 
               <div className="space-y-2">
@@ -146,8 +159,9 @@ export default function PetPage() {
                   placeholder="몸무게"
                   value={form.weight}
                   onChange={handleChange}
-                  className="h-12"
+                  className={`h-12 ${errors.weight ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                 />
+                {errors.weight && <p className="text-xs text-red-500">{errors.weight}</p>}
               </div>
             </div>
 
