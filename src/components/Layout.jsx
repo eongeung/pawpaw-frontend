@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
-import { Home, PawPrint, Footprints, Hospital, MessageCircle } from "lucide-react";
+import { Home, Footprints, Hospital, MessageCircle, PawPrint, User } from "lucide-react";
 import useAuthStore from "../store/authStore";
 
 export function Layout() {
@@ -16,10 +16,11 @@ export function Layout() {
 
   const navItems = [
     { icon: Home, label: "커뮤니티", path: "/" },
-    { icon: PawPrint, label: "내 펫", path: "/pets" },
     { icon: Footprints, label: "산책 매칭", path: "/walk" },
-    { icon: Hospital, label: "동물병원", path: "/hospital" },
+    { icon: Hospital, label: "가까운 동물병원", path: "/hospital" },
     { icon: MessageCircle, label: "채팅", path: "/chat" },
+    { icon: PawPrint, label: "내 펫", path: "/pets" },
+    { icon: User, label: "마이페이지", path: "/mypage" },
   ];
 
   return (
@@ -33,7 +34,7 @@ export function Layout() {
               PawPaw
             </h1>
           </Link>
-          
+
           <button
             onClick={handleLogout}
             className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-full hover:from-purple-700 hover:to-indigo-700 hover:shadow-lg transition-all"
@@ -50,12 +51,14 @@ export function Layout() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
-              
+
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   className={`flex items-center gap-2 px-4 py-3 rounded-t-lg transition-all whitespace-nowrap ${
+                    item.path === '/pets' ? 'ml-auto' : ''
+                  } ${
                     isActive
                       ? "text-purple-600 border-b-2 border-purple-600 bg-purple-50"
                       : "text-gray-600 hover:text-purple-600 hover:bg-purple-50"
