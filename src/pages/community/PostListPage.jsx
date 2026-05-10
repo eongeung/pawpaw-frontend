@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import axios from '../../api/axios';
 import { Button } from '../../components/ui/button';
-import { Plus, Heart } from 'lucide-react';
+import { Plus, Heart, MessageCircle } from 'lucide-react';
 
 export default function PostListPage() {
   const [posts, setPosts] = useState([]);
@@ -34,9 +34,15 @@ export default function PostListPage() {
           >
             <div className="flex justify-between items-start mb-2">
               <h3 className="text-xl font-bold text-gray-800">{post.title}</h3>
-              <div className="flex items-center gap-1 text-purple-600">
-                <Heart className="w-5 h-5" />
-                <span className="font-semibold">{post.likeCount}</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 text-purple-600">
+                  <Heart className="w-4 h-4" />
+                  <span className="text-sm font-semibold">{post.likeCount}</span>
+                </div>
+                <div className="flex items-center gap-1 text-gray-400">
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-sm">{post.commentCount ?? 0}</span>
+                </div>
               </div>
             </div>
             <p className="text-sm text-gray-500">
